@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <meta name="theme-color" content="#0b5fff" />
+  <title>Tetris — pezzaliAPP</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <meta property="og:title" content="Tetris PWA — pezzaliAPP">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="icons/icon-512.png">
+  <meta name="description" content="Tetris classico in PWA: offline, installabile, giocabile da browser con tastiera e touch. Compatibile con iPhone/iPad.">
+  <link rel="stylesheet" href="style.css">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon-192.png" alt="Icona" />
+      <h1>Tetris — pezzaliAPP</h1>
+    </div>
+    <div class="install-hint" id="installHint" hidden>Installa l'app dal menu del browser</div>
+  </header>
+
+  <main class="layout">
+    <section class="left">
+      <canvas id="board" width="300" height="600" aria-label="Campo di gioco Tetris"></canvas>
+      <div class="mobile-controls">
+        <button id="btnLeft" aria-label="Sinistra">◀︎</button>
+        <button id="btnRotate" aria-label="Ruota">⟳</button>
+        <button id="btnRight" aria-label="Destra">▶︎</button>
+        <button id="btnDown" aria-label="Giù">▼</button>
+        <button id="btnDrop" aria-label="Drop">⤓</button>
+      </div>
+    </section>
+    <section class="right">
+      <div class="panel">
+        <h2>Stato</h2>
+        <p>Punteggio: <strong id="score">0</strong></p>
+        <p>Linee: <strong id="lines">0</strong></p>
+        <p>Livello: <strong id="level">1</strong></p>
+      </div>
+      <div class="panel">
+        <h2>Prossimo</h2>
+        <canvas id="next" width="120" height="120"></canvas>
+      </div>
+      <div class="panel">
+        <h2>Hold</h2>
+        <canvas id="hold" width="120" height="120"></canvas>
+        <p class="muted">Premi <kbd>C</kbd> per tenere</p>
+      </div>
+      <div class="panel">
+        <h2>Comandi</h2>
+        <ul class="keys">
+          <li>◀︎/▶︎: Muovi</li>
+          <li>▼: Soft drop</li>
+          <li>Spazio: Hard drop</li>
+          <li>Z / X: Ruota</li>
+          <li>C: Hold</li>
+          <li>P: Pausa</li>
+          <li>R: Restart</li>
+        </ul>
+      </div>
+      <button id="btnPause" class="full">⏸ Pausa</button>
+      <button id="btnRestart" class="ghost">↺ Restart</button>
+      <p class="muted small">© 2025 pezzaliAPP — MIT • Offline-ready • No‑cloud</p>
+    </section>
+  </main>
+
+  <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="card">
+      <h2 id="overlayTitle">Tetris — PWA</h2>
+      <p id="overlayText">Premi <strong>R</strong> o il bottone per iniziare.</p>
+      <button id="overlayBtn">Gioca</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js');
+      });
+    }
+  </script>
+</body>
+</html>

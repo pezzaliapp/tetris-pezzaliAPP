@@ -1,0 +1,27 @@
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:#0f1320;color:#e9eef5}
+.topbar{position:sticky;top:0;background:#0b5fff;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.topbar .brand{display:flex;gap:10px;align-items:center}
+.topbar img{width:28px;height:28px;border-radius:6px}
+h1{font-size:1.1rem;margin:0}
+.install-hint{font-size:.9rem;opacity:.9}
+.layout{display:grid;grid-template-columns:minmax(300px,1fr) 320px;gap:16px;max-width:980px;margin:0 auto;padding:16px}
+.left{display:flex;flex-direction:column;align-items:center;gap:12px}
+.right{display:flex;flex-direction:column;gap:12px}
+canvas{background:#12182a;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.panel{background:#151b31;border:1px solid rgba(255,255,255,.06);padding:12px;border-radius:12px}
+.panel h2{margin:.2rem 0 .5rem 0;font-size:1rem}
+.keys{margin:.3rem 0 .2rem 1rem;padding:0}
+.keys li{margin:.2rem 0}
+.full{background:#0b5fff;color:white;border:0;padding:10px 12px;border-radius:10px;font-size:1rem}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,.25);color:#e9eef5;padding:8px 12px;border-radius:10px}
+.muted{opacity:.8}
+.small{font-size:.85rem}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.6);backdrop-filter:blur(3px)}
+.overlay.hidden{display:none}
+.card{background:#151b31;border:1px solid rgba(255,255,255,.1);padding:18px 16px;border-radius:14px;max-width:360px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.card h2{margin:.2rem 0 .6rem 0}
+.card button{margin-top:6px}
+.mobile-controls{display:grid;grid-template-columns:repeat(5,56px);gap:8px}
+.mobile-controls button{background:#1b2342;color:#fff;border:1px solid rgba(255,255,255,.12);padding:10px;border-radius:10px;font-size:1.1rem}
+@media (max-width:860px){.layout{grid-template-columns:1fr}}
