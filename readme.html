@@ -62,79 +62,209 @@
     <p class="footer">Parte della collezione giochi pezzaliAPP.</p>
   </main>
 
-  <script>
-  // Demo Tetris corretta: rotazione attorno al pivot e caduta verticale
-  const c = document.getElementById('demo');
-  const ctx = c.getContext('2d');
+ <script>
+// Mini-Tetris fedele nel canvas #demo (giocabile)
+// — grid 10x20, tile 12px, 7-bag, gravity, lock, line clear
 
-  const GRID = 24;                        // dimensione cella
-  const W = c.width, H = c.height;
-  const color = '#845ef7';
+const c = document.getElementById('demo');
+const ctx = c.getContext('2d');
 
-  // Tetromino T in griglia 4x4 con pivot SRS a (1,1)
-  // celle: (x,y) con 0<=x,y<=3
-  const cells = [ {x:1,y:0}, {x:0,y:1}, {x:1,y:1}, {x:2,y:1} ];
-  const pivot = { x:1, y:1 };             // pivot del pezzo T
+// Board
+const W = 10, H = 20, TILE = 12;
+const offX = Math.floor((c.width - W*TILE)/2);
+const offY = 0;
 
-  // Stato animazione
-  let angle = 0;                          // rotazione continua (solo per effetto demo)
-  let yOffset = -2 * GRID;                // parte dall'alto
-  const fallSpeed = 0.8;                  // px per frame ~ morbido
+// Shapes (4x4) – coordinate celle [x,y]
+const SHAPES = {
+  I: [[0,1],[1,1],[2,1],[3,1]],
+  J: [[0,0],[0,1],[1,1],[2,1]],
+  L: [[2,0],[0,1],[1,1],[2,1]],
+  O: [[1,0],[2,0],[1,1],[2,1]],
+  S: [[1,0],[2,0],[0,1],[1,1]],
+  Z: [[0,0],[1,0],[1,1],[2,1]],
+  T: [[1,0],[0,1],[1,1],[2,1]],
+};
+const COLORS = {
+  I:'#63e6ff', O:'#ffd43b', T:'#845ef7', S:'#51cf66', Z:'#ff6b6b', J:'#4dabf7', L:'#ffa94d'
+};
 
-  function drawGrid(){
-    ctx.fillStyle = '#0e1429';
-    ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle = 'rgba(255,255,255,.06)';
-    for(let x=0;x<=W;x+=GRID){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for(let y=0;y<=H;y+=GRID){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+// SRS kick (semplificato) per pezzi non-I e per I
+const KICKS = {
+  normal: {
+    0:{1:[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],3:[[0,0],[+1,0],[+1,-1],[0,2],[+1,2]]},
+    1:{2:[[0,0],[+1,0],[+1,+1],[0,-2],[+1,-2]],0:[[0,0],[-1,0],[-1,+1],[0,-2],[-1,-2]]},
+    2:{3:[[0,0],[+1,0],[+1,-1],[0,2],[+1,2]],1:[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]]},
+    3:{0:[[0,0],[-1,0],[-1,+1],[0,-2],[-1,-2]],2:[[0,0],[+1,0],[+1,+1],[0,-2],[+1,-2]]}
+  },
+  I: {
+    0:{1:[[0,0],[-2,0],[+1,0],[-2,+1],[+1,-2]],3:[[0,0],[+2,0],[-1,0],[+2,-1],[-1,+2]]},
+    1:{2:[[0,0],[-1,0],[+2,0],[-1,-2],[+2,+1]],0:[[0,0],[+2,0],[-1,0],[+2,-1],[-1,+2]]},
+    2:{3:[[0,0],[+2,0],[-1,0],[+2,+1],[-1,-2]],1:[[0,0],[+1,0],[-2,0],[+1,+2],[-2,-1]]},
+    3:{0:[[0,0],[+1,0],[-2,0],[+1,-2],[-2,+1]],2:[[0,0],[-2,0],[+1,0],[-2,+1],[+1,-2]]}
   }
+};
 
-  function drawPiece(){
-    // Centro orizzontale
-    const originX = Math.floor(W/2);
-    const originY = yOffset;
+let board = Array.from({length:H},()=>Array(W).fill(0));
 
-    // Disegna ogni cella ruotando attorno al pivot (in coordinate di cella)
-    for(const {x,y} of cells){
-      // Trasla rispetto al pivot
-      const rx = x - pivot.x;
-      const ry = y - pivot.y;
+class Bag7 {
+  constructor(){ this.b=[]; }
+  next(){
+    if (!this.b.length) this.b = ['I','J','L','O','S','T','Z'].sort(()=>Math.random()-0.5);
+    return this.b.pop();
+  }
+}
+const bag = new Bag7();
 
-      // Rotazione continua (solo demo): matrice standard
-      const cos = Math.cos(angle), sin = Math.sin(angle);
-      const ux = rx * cos - ry * sin;
-      const uy = rx * sin + ry * cos;
+function newPiece(type){
+  const p = {
+    t:type, r:0, x:3, y:-1,
+    cells: SHAPES[type].map(([x,y])=>({x,y}))
+  };
+  return p;
+}
 
-      // Torna in coordinate "pixel" centrando la 4x4 orizzontalmente
-      const px = originX + ux * GRID;
-      const py = originY + uy * GRID;
+let curr = newPiece(bag.next()), nextType = bag.next();
+let fallTimer = 0, fallDelay = 550; // ms
+let lastTs = 0;
+let clearing = []; // righe in flash
 
-      // Disegno blocco
-      ctx.fillStyle = color;
-      ctx.fillRect(px - GRID/2 + 2, py - GRID/2 + 2, GRID - 4, GRID - 4);
+function valid(p, dx=0, dy=0, rDelta=0){
+  const r = (p.r + rDelta + 4) % 4;
+  for (const {x,y} of rotateCells(p.cells, r)){
+    const nx = p.x + x + dx;
+    const ny = p.y + y + dy;
+    if (nx < 0 || nx >= W || ny >= H) return false;
+    if (ny >= 0 && board[ny][nx]) return false;
+  }
+  return true;
+}
 
-      // riflesso
-      ctx.globalAlpha = .2; ctx.fillStyle = '#fff';
-      ctx.fillRect(px - GRID/2 + 2, py - GRID/2 + 2, GRID - 4, 5);
-      ctx.globalAlpha = 1;
+function rotateCells(cells, rot){
+  // Rotazione 90° a passi su bounding 4x4 (x,y in 0..3)
+  return cells.map(({x,y})=>{
+    let nx=x, ny=y;
+    for (let i=0;i<rot;i++){ const tx = 3 - ny; const ty = x; nx=tx; ny=ty; x=nx; y=ny; }
+    return {x:nx,y:ny};
+  });
+}
+
+function tryRotate(dir){
+  const to = (curr.r + dir + 4) % 4;
+  const sys = (curr.t==='I'? KICKS.I : KICKS.normal);
+  const table = sys[curr.r][to];
+  const rotated = { ...curr, r:to };
+  for (const [kx,ky] of table){
+    if (valid(rotated, kx, ky, 0)){ curr.r = to; curr.x += kx; curr.y += ky; return; }
+  }
+}
+
+function lock(){
+  for (const {x,y} of rotateCells(curr.cells, curr.r)){
+    const gx = curr.x + x, gy = curr.y + y;
+    if (gy >= 0) board[gy][gx] = curr.t;
+  }
+  // clear lines
+  clearing = [];
+  for (let y=H-1;y>=0;y--){
+    if (board[y].every(v=>v)) clearing.push(y);
+  }
+  if (clearing.length){
+    // piccola pausa/flash
+    setTimeout(()=>{
+      for (const y of clearing){
+        board.splice(y,1);
+        board.unshift(Array(W).fill(0));
+      }
+      clearing = [];
+    }, 80);
+  }
+  // new piece
+  curr = newPiece(nextType);
+  nextType = bag.next();
+  if (!valid(curr,0,0,0)) gameOver();
+}
+
+let over = false;
+function gameOver(){ over = true; }
+
+function hardDrop(){
+  while (valid(curr,0,1,0)) curr.y++;
+  lock();
+}
+
+function step(ts){
+  if (over) { draw(); return; }
+  if (!lastTs) lastTs = ts;
+  const dt = ts - lastTs; lastTs = ts;
+  fallTimer += dt;
+  if (fallTimer >= fallDelay){
+    fallTimer = 0;
+    if (valid(curr,0,1,0)) curr.y++;
+    else lock();
+  }
+  draw();
+  requestAnimationFrame(step);
+}
+
+function draw(){
+  // sfondo & griglia
+  ctx.fillStyle = '#0e1429'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle = 'rgba(255,255,255,.06)';
+  for (let x=0;x<=W;x++){ ctx.beginPath(); ctx.moveTo(offX + x*TILE, offY); ctx.lineTo(offX + x*TILE, offY + H*TILE); ctx.stroke(); }
+  for (let y=0;y<=H;y++){ ctx.beginPath(); ctx.moveTo(offX, offY + y*TILE); ctx.lineTo(offX + W*TILE, offY + y*TILE); ctx.stroke(); }
+
+  // pezzi piazzati
+  for (let y=0;y<H;y++){
+    for (let x=0;x<W;x++){
+      const t = board[y][x];
+      if (t){
+        drawTile(x,y, COLORS[t], clearing.includes(y) ? 0.35 : 1);
+      }
     }
   }
 
-  function loop(){
-    drawGrid();
-    drawPiece();
+  // ghost
+  const g = {...curr};
+  while (valid(g,0,1,0)) g.y++;
+  drawPiece(g, true);
 
-    // Aggiorna animazione
-    angle += 0.03;             // rotazione fluida (effetto vetrina)
-    yOffset += fallSpeed;      // caduta
-    const bottom = H - 2*GRID; // "pavimento" visivo
-    if (yOffset > bottom){
-      yOffset = -2 * GRID;     // reset dall'alto
-    }
+  // corrente
+  drawPiece(curr, false);
+}
 
-    requestAnimationFrame(loop);
+function drawPiece(p, ghost){
+  const cols = rotateCells(p.cells, p.r);
+  for (const {x,y} of cols){
+    const gx = p.x + x, gy = p.y + y;
+    if (gy < 0) continue;
+    drawTile(gx,gy, COLORS[p.t], ghost ? 0.25 : 1);
   }
-  loop();
+}
+
+function drawTile(x,y,color,alpha=1){
+  const px = offX + x*TILE, py = offY + y*TILE;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fillRect(px+1, py+1, TILE-2, TILE-2);
+  ctx.globalAlpha = Math.min(alpha, .22);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px+1, py+1, TILE-2, 4);
+  ctx.restore();
+}
+
+// Input
+document.addEventListener('keydown', e=>{
+  if (over) return;
+  if (e.code==='ArrowLeft'){ if (valid(curr,-1,0,0)) curr.x--; }
+  else if (e.code==='ArrowRight'){ if (valid(curr,1,0,0)) curr.x++; }
+  else if (e.code==='ArrowDown'){ if (valid(curr,0,1,0)) curr.y++; }
+  else if (e.code==='Space'){ e.preventDefault(); hardDrop(); }
+  else if (e.code==='KeyZ'){ tryRotate(-1); }
+  else if (e.code==='KeyX'){ tryRotate(1); }
+});
+
+requestAnimationFrame(step);
 </script>
 </body>
 </html>
