@@ -63,38 +63,78 @@
   </main>
 
   <script>
-    // Mini demo: tetromino T rotante
-    const c = document.getElementById('demo');
-    const ctx = c.getContext('2d');
-    const size = 24;
-    const origin = { x: c.width/2, y: c.height/2 };
-    const blocks = [[-1,0],[0,0],[1,0],[0,1]]; // T
-    let a = 0;
-    function draw(){
-      ctx.clearRect(0,0,c.width,c.height);
-      // grid
-      ctx.fillStyle = '#0e1429'; ctx.fillRect(0,0,c.width,c.height);
-      ctx.strokeStyle = 'rgba(255,255,255,.06)';
-      for(let x=0;x<=c.width;x+=size){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,c.height);ctx.stroke();}
-      for(let y=0;y<=c.height;y+=size){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke();}
-      // piece
-      const cos = Math.cos(a), sin = Math.sin(a);
-      const color = '#845ef7';
-      for(const [bx,by] of blocks){
-        const rx = bx*cos - by*sin;
-        const ry = bx*sin + by*cos;
-        const px = origin.x + rx*size;
-        const py = origin.y + ry*size;
-        ctx.fillStyle = color;
-        ctx.fillRect(px - size/2 + 2, py - size/2 + 2, size-4, size-4);
-        ctx.globalAlpha=.2; ctx.fillStyle='#fff';
-        ctx.fillRect(px - size/2 + 2, py - size/2 + 2, size-4, 5);
-        ctx.globalAlpha=1;
-      }
-      a += 0.03;
-      requestAnimationFrame(draw);
+  // Demo Tetris corretta: rotazione attorno al pivot e caduta verticale
+  const c = document.getElementById('demo');
+  const ctx = c.getContext('2d');
+
+  const GRID = 24;                        // dimensione cella
+  const W = c.width, H = c.height;
+  const color = '#845ef7';
+
+  // Tetromino T in griglia 4x4 con pivot SRS a (1,1)
+  // celle: (x,y) con 0<=x,y<=3
+  const cells = [ {x:1,y:0}, {x:0,y:1}, {x:1,y:1}, {x:2,y:1} ];
+  const pivot = { x:1, y:1 };             // pivot del pezzo T
+
+  // Stato animazione
+  let angle = 0;                          // rotazione continua (solo per effetto demo)
+  let yOffset = -2 * GRID;                // parte dall'alto
+  const fallSpeed = 0.8;                  // px per frame ~ morbido
+
+  function drawGrid(){
+    ctx.fillStyle = '#0e1429';
+    ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = 'rgba(255,255,255,.06)';
+    for(let x=0;x<=W;x+=GRID){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for(let y=0;y<=H;y+=GRID){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  }
+
+  function drawPiece(){
+    // Centro orizzontale
+    const originX = Math.floor(W/2);
+    const originY = yOffset;
+
+    // Disegna ogni cella ruotando attorno al pivot (in coordinate di cella)
+    for(const {x,y} of cells){
+      // Trasla rispetto al pivot
+      const rx = x - pivot.x;
+      const ry = y - pivot.y;
+
+      // Rotazione continua (solo demo): matrice standard
+      const cos = Math.cos(angle), sin = Math.sin(angle);
+      const ux = rx * cos - ry * sin;
+      const uy = rx * sin + ry * cos;
+
+      // Torna in coordinate "pixel" centrando la 4x4 orizzontalmente
+      const px = originX + ux * GRID;
+      const py = originY + uy * GRID;
+
+      // Disegno blocco
+      ctx.fillStyle = color;
+      ctx.fillRect(px - GRID/2 + 2, py - GRID/2 + 2, GRID - 4, GRID - 4);
+
+      // riflesso
+      ctx.globalAlpha = .2; ctx.fillStyle = '#fff';
+      ctx.fillRect(px - GRID/2 + 2, py - GRID/2 + 2, GRID - 4, 5);
+      ctx.globalAlpha = 1;
     }
-    draw();
-  </script>
+  }
+
+  function loop(){
+    drawGrid();
+    drawPiece();
+
+    // Aggiorna animazione
+    angle += 0.03;             // rotazione fluida (effetto vetrina)
+    yOffset += fallSpeed;      // caduta
+    const bottom = H - 2*GRID; // "pavimento" visivo
+    if (yOffset > bottom){
+      yOffset = -2 * GRID;     // reset dall'alto
+    }
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+</script>
 </body>
 </html>
